@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Upload de Arquivos</title>
+    <style>
+        /* Seu estilo CSS aqui */
+    </style>
+</head>
+<body>
+    <div class="con">
+        <form class="form-con" id="uploadForm" enctype="multipart/form-data">
+            <label for="author">Autor:</label>
+            <input type="text" id="author" name="author" required>
+
+            <label for="title">Título:</label>
+            <input type="text" id="title" name="title" required>
+
+            <label for="file">Escolha os arquivos:</label>
+            <input type="file" id="file" name="file[]" multiple required>
+
+            <button type="button" onclick="uploadFiles()">Enviar</button>
+        </form>
+    </div>
+
+    <div class="uploads" id="uploads">
+        <!-- Os uploads serão carregados aqui -->
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            fetch('https://ajudapratodos.000webhostapp.com/missoes/fetch_uploads.php')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Erro na resposta do servidor');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const uploads = document.getElementById('uploads');
+                    const groups = {};
+
+                    if (!Array.isArray(data.files)) {
+                        throw new Error('Dados inválidos recebidos do servidor.');
+                    }
+
+                    data.files.forEach(file => {
+                        if (!file.file_type) {
+                            console.error('file_type não definido para', file);
+                            return;
+                        }
+
+                        const author = file.author;
+                        const title = file.title;
+                        const key = `${author}-${title}`;
+
+                        if (!groups[key]) {
+                            groups[key] = {
+                                author,
+                                title,
+                                elements: []
+                            };
+                        }
+
+                        groups[key].elements.push(file);
+                    });
+
+                    Object.values(groups).forEach(group => {
+                        const container = document.createElement('div');
+                        container.className = 'document-group';
+
+                        let fileElements = '<div class="document-content">';
+
+                        group.elements.forEach(element => {
+                            if (element.file_type.startsWith('image/')) {
+                                fileElements += `<img src="uploaded_files/${element.file_name}" alt="${element.title}" />`;
+                            } else {
+                                fileElements += `<a href="uploaded_files/${element.file_name}" target="_blank">${element.title}</a>`;
+                            }
+                        });
+
+                        fileElements += '</div>';
+
+                        container.innerHTML = `
+                            <h3>${group.author} - ${group.title}</h3>
+                            ${fileElements}
+                        `;
+
+                        uploads.appendChild(container);
+                    });
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar uploads:', error);
+                });
+        });
+
+        function uploadFiles() {
+            const form = document.getElementById('uploadForm');
+            const formData = new FormData(form);
+
+            fetch('https://ajudapratodos.000webhostapp.com/missoes/upload.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Erro na resposta do servidor');
+                }
+                return response.json();
+            })
+            .then(data => {
+                alert(data.message);
+                location.reload();
+            })
+            .catch(error => {
+                console.error('Erro ao enviar arquivos:', error);
+            });
+        }
+    </script>
+</body>
+</html>
